@@ -1,21 +1,25 @@
 {
   "name": "collector",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Clipboard Manager & Snippet Tool",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
+    "start": "unset ELECTRON_RUN_AS_NODE && electron .",
     "build": "electron-builder build --win --publish never",
     "build-mac": "electron-builder build --mac --publish never",
     "build-linux": "electron-builder build --linux --publish never",
     "build-all": "electron-builder build --win --mac --linux --publish never"
   },
-  "keywords": ["clipboard", "snippet", "productivity"],
+  "keywords": [
+    "clipboard",
+    "snippet",
+    "productivity"
+  ],
   "author": "Your Team",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^28.0.0",
-    "electron-builder": "^24.9.0"
+    "electron": "^28.3.3",
+    "electron-builder": "^26.4.0"
   },
   "dependencies": {
     "electron-store": "^8.1.0"
@@ -27,11 +31,15 @@
       "output": "dist"
     },
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "icon": "icon.ico"
     },
     "mac": {
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "icon": "icon.icns"
     },
     "nsis": {
