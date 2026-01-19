@@ -60,7 +60,7 @@ function setupEventListeners() {
     const content = document.getElementById('snippet-content').value.trim();
 
     if (title && content) {
-      await window.electronAPI.addSnippet(title, content, selectedEmoji);
+      await window.electronAPI.addSnippet({ title, content, emoji: selectedEmoji });
       snippets = await window.electronAPI.getSnippets();
       renderContent();
       document.getElementById('add-modal').classList.remove('show');
@@ -70,7 +70,7 @@ function setupEventListeners() {
   // 전체 삭제
   document.getElementById('clear-btn').addEventListener('click', async () => {
     if (confirm('정말로 모든 항목을 삭제하시겠습니까?')) {
-      await window.electronAPI.clearClipboard();
+      await window.electronAPI.clearHistory();
       clipboardHistory = [];
       updateFilterCounts();
       renderContent();
@@ -209,6 +209,26 @@ function renderContent() {
   }
 
   content.innerHTML = html;
+
+  // 이벤트 델리게이션으로 아이템 클릭 처리
+  content.querySelectorAll('.item').forEach(itemEl => {
+    const itemId = itemEl.dataset.itemId;
+    const item = clipboardHistory.find(i => i.id === itemId);
+
+    itemEl.addEventListener('click', (e) => {
+      if (!e.target.closest('.item-actions')) {
+        copyToClipboard(item.content);
+      }
+    });
+
+    const deleteBtn = itemEl.querySelector('[data-action="delete"]');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteItem(itemId);
+      });
+    }
+  });
 }
 
 function renderItem(item) {
@@ -217,7 +237,7 @@ function renderItem(item) {
   const source = detectSource(item.content);
 
   return `
-    <div class="item" onclick="copyToClipboard('${escapeHtml(item.content)}')">
+    <div class="item" data-item-id="${item.id}">
       <div class="item-thumbnail">📄</div>
       <div class="item-content">
         <div class="item-title">${detectTitle(item.content)}</div>
@@ -229,7 +249,7 @@ function renderItem(item) {
         </div>
       </div>
       <div class="item-actions">
-        <button class="btn btn-small btn-secondary" onclick="event.stopPropagation(); deleteItem('${item.id}')">삭제</button>
+        <button class="btn btn-small btn-secondary" data-action="delete">삭제</button>
       </div>
     </div>
   `;
@@ -263,13 +283,13 @@ function formatTimestamp(timestamp) {
 }
 
 async function copyToClipboard(text) {
-  await window.electronAPI.copyText(text);
+  await window.electronAPI.copyToClipboard(text);
   // 복사 완료 피드백 (추후 토스트 메시지 추가 가능)
 }
 
 async function deleteItem(id) {
-  await window.electronAPI.deleteItem(id);
-  clipboardHistory = await window.electronAPI.getClipboardHistory();
+  // 배열에서 직접 제거
+  clipboardHistory = clipboardHistory.filter(item => item.id !== id);
   updateFilterCounts();
   renderContent();
 }
