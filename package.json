@@ -1,6 +1,6 @@
 {
   "name": "collector",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Clipboard Manager & Snippet Tool",
   "main": "main.js",
   "scripts": {
