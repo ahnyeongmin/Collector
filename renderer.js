@@ -91,9 +91,9 @@ function setupEventListeners() {
 }
 
 function updateFilterCounts() {
-  const textCount = clipboardHistory.filter(item => isTextItem(item)).length;
-  const imageCount = 0; // 추후 구현
-  const fileCount = 0; // 추후 구현
+  const textCount = clipboardHistory.filter(item => item.type === 'text' || !item.type).length;
+  const imageCount = clipboardHistory.filter(item => item.type === 'image').length;
+  const fileCount = clipboardHistory.filter(item => item.type === 'file').length;
   const totalCount = clipboardHistory.length;
 
   document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -131,11 +131,11 @@ function filterItems(items) {
     filtered = filtered.filter(item => {
       switch (currentFilter) {
         case 'text':
-          return isTextItem(item);
+          return item.type === 'text' || !item.type;
         case 'image':
-          return false; // 추후 구현
+          return item.type === 'image';
         case 'file':
-          return false; // 추후 구현
+          return item.type === 'file';
         default:
           return true;
       }
@@ -144,9 +144,10 @@ function filterItems(items) {
 
   // 검색 적용
   if (currentSearch) {
-    filtered = filtered.filter(item =>
-      item.content.toLowerCase().includes(currentSearch)
-    );
+    filtered = filtered.filter(item => {
+      const searchContent = item.type === 'file' ? (item.meta?.fileName || item.content) : item.content;
+      return searchContent.toLowerCase().includes(currentSearch);
+    });
   }
 
   return filtered;
@@ -232,16 +233,32 @@ function renderContent() {
 }
 
 function renderItem(item) {
-  const preview = item.content.substring(0, 100);
+  const isImage = item.type === 'image';
+  const isFile = item.type === 'file';
+
+  let thumbnail = '📄';
+  let title = detectTitle(item.content);
+  let preview = item.content.substring(0, 100);
+
+  if (isImage) {
+    thumbnail = `<img src="${item.content}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px;">`;
+    title = '이미지';
+    preview = `${item.meta?.width}x${item.meta?.height} px`;
+  } else if (isFile) {
+    thumbnail = '📁';
+    title = item.meta?.fileName || '파일';
+    preview = item.content;
+  }
+
   const timestamp = formatTimestamp(item.timestamp);
-  const source = detectSource(item.content);
+  const source = detectSource(item.content, item.type);
 
   return `
     <div class="item" data-item-id="${item.id}">
-      <div class="item-thumbnail">📄</div>
+      <div class="item-thumbnail">${thumbnail}</div>
       <div class="item-content">
-        <div class="item-title">${detectTitle(item.content)}</div>
-        <div class="item-text">${escapeHtml(preview)}</div>
+        <div class="item-title">${title}</div>
+        <div class="item-text">${isImage ? preview : escapeHtml(preview)}</div>
         <div class="item-meta">
           <span>${source}</span>
           <div class="item-meta-dot"></div>
@@ -261,7 +278,9 @@ function detectTitle(content) {
   return firstLine || '텍스트';
 }
 
-function detectSource(content) {
+function detectSource(content, type) {
+  if (type === 'image') return '이미지 • Collector';
+  if (type === 'file') return '파일 • Collector';
   if (content.includes('http://') || content.includes('https://')) {
     return '텍스트 • Google Chrome';
   }
@@ -282,9 +301,9 @@ function formatTimestamp(timestamp) {
   return `${days}일 전`;
 }
 
-async function copyToClipboard(text) {
-  await window.electronAPI.copyToClipboard(text);
-  // 복사 완료 피드백 (추후 토스트 메시지 추가 가능)
+async function copyToClipboard(content, type = 'text') {
+  await window.electronAPI.copyToClipboard(content, type);
+  // 포커스 이동을 위해 윈도우 숨김 요청 (선택사항, main에서 처리하도록 push-and-close 사용 권장)
 }
 
 async function deleteItem(id) {

@@ -650,12 +650,26 @@
         const isSelected = index === selectedIndex;
 
         if (currentTab === 'clipboard') {
+          const isImage = item.type === 'image';
+          const isFile = item.type === 'file';
+          
+          let thumbnail = '📄';
+          let preview = item.content.substring(0, 80);
+
+          if (isImage) {
+            thumbnail = `<img src="${item.content}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px;">`;
+            preview = `이미지 (${item.meta?.width}x${item.meta?.height})`;
+          } else if (isFile) {
+            thumbnail = '📁';
+            preview = item.meta?.fileName || item.content;
+          }
+
           return `
             <div class="item ${isSelected ? 'selected' : ''}" onclick="selectItem(${index})">
               <div class="item-number">${number}</div>
-              <div class="item-icon">📄</div>
+              <div class="item-icon" style="display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; min-width: 24px;">${thumbnail}</div>
               <div class="item-content">
-                <div class="item-text">${escapeHtml(item.content.substring(0, 80))}</div>
+                <div class="item-text" style="font-weight: ${isFile ? '600' : '400'}">${escapeHtml(preview)}</div>
               </div>
             </div>
           `;
@@ -689,10 +703,11 @@
       const items = currentTab === 'clipboard' ? clipboardHistory : snippets;
       if (index >= 0 && index < items.length) {
         const item = items[index];
-        console.log('Pasting and closing:', item.content);
+        const type = item.type || (currentTab === 'snippets' ? 'text' : 'text');
+        console.log('Pasting and closing:', item.content, 'Type:', type);
 
         try {
-          const result = await window.electronAPI.pasteAndClose(item.content);
+          const result = await window.electronAPI.pasteAndClose(item.content, type);
           console.log('pasteAndClose result:', result);
         } catch (error) {
           console.error('pasteAndClose error:', error);

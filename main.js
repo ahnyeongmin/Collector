@@ -33,12 +33,63 @@ function startClipboardMonitoring() {
   setInterval(() => {
     if (!isMonitoring) return;
 
+    const formats = clipboard.availableFormats();
+
+    // 1. 이미지 처리
+    if (formats.includes('image/png') || formats.includes('image/jpeg')) {
+      const image = clipboard.readImage();
+      const dataUrl = image.toDataURL();
+      if (dataUrl && dataUrl !== lastClipboard && dataUrl.length > 22) { // 22 is empty data url length approx
+        lastClipboard = dataUrl;
+        addThumbnailToHistory(image, dataUrl);
+        return;
+      }
+    }
+
+    // 2. 파일 처리 (macOS: 'text/uri-list', Windows: 'FileNameW')
+    const filePath = clipboard.read('text/uri-list') || clipboard.read('FileNameW');
+    if (filePath && filePath !== lastClipboard) {
+      lastClipboard = filePath;
+      addFileToHistory(filePath);
+      return;
+    }
+
+    // 3. 텍스트 처리
     const text = clipboard.readText();
     if (text && text !== lastClipboard && text.length > 0) {
       lastClipboard = text;
       addToHistory(text);
     }
-  }, 500);
+  }, 1000); // 1초 주기로 변경 (성능 고려)
+}
+
+function addThumbnailToHistory(image, dataUrl) {
+  const size = image.getSize();
+  clipboardHistory.unshift({
+    id: Date.now().toString(),
+    content: dataUrl,
+    type: 'image',
+    meta: { width: size.width, height: size.height },
+    timestamp: Date.now()
+  });
+  finalizeHistoryUpdate();
+}
+
+function addFileToHistory(rawPath) {
+  // macOS의 경우 file:/// 경로로 오므로 정규화 필요
+  let filePath = rawPath.trim().split('\n')[0]; // 여러 파일인 경우 첫 번째만
+  if (filePath.startsWith('file://')) {
+    filePath = decodeURI(filePath.replace('file://', ''));
+  }
+
+  clipboardHistory.unshift({
+    id: Date.now().toString(),
+    content: filePath,
+    type: 'file',
+    meta: { fileName: path.basename(filePath) },
+    timestamp: Date.now()
+  });
+  finalizeHistoryUpdate();
 }
 
 function addToHistory(text) {
@@ -49,14 +100,16 @@ function addToHistory(text) {
     id: Date.now().toString(),
     content: text,
     type: 'text',
-    sourceApp: '',
     timestamp: Date.now()
   });
 
+  finalizeHistoryUpdate();
+}
+
+function finalizeHistoryUpdate() {
   clipboardHistory = clipboardHistory.slice(0, 100);
   saveData();
 
-  // 메인 윈도우가 열려 있으면 업데이트
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('data-updated');
   }
@@ -230,19 +283,30 @@ app.whenReady().then(() => {
     return true;
   });
 
-  ipcMain.handle('paste-and-close', async (event, text) => {
-    console.log('[IPC] paste-and-close called with:', text);
+  ipcMain.handle('paste-and-close', async (event, text, type = 'text') => {
+    console.log('[IPC] paste-and-close called with type:', type);
 
     try {
-      clipboard.writeText(text);
-      lastClipboard = text;
-      console.log('[IPC] Clipboard written successfully');
-
-      if (quickPasteWindow && !quickPasteWindow.isDestroyed()) {
-        console.log('[IPC] Closing quickPasteWindow');
-        quickPasteWindow.close();
+      if (type === 'image') {
+        const nativeImg = nativeImage.createFromDataURL(text);
+        clipboard.writeImage(nativeImg);
       } else {
-        console.error('[IPC] quickPasteWindow is null or destroyed');
+        clipboard.writeText(text);
+      }
+
+      lastClipboard = text;
+
+      // 윈도우 숨기기 및 포커스 반환
+      if (quickPasteWindow && !quickPasteWindow.isDestroyed()) {
+        quickPasteWindow.hide(); // close 대신 hide로 부드럽게
+      }
+
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.hide();
+      }
+
+      if (process.platform === 'darwin') {
+        app.hide(); // macOS에서 이전 앱으로 포커스 반환
       }
 
       return { success: true };
