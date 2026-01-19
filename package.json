@@ -1,0 +1,43 @@
+{
+  "name": "collector",
+  "version": "1.0.0",
+  "description": "Clipboard Manager & Snippet Tool",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder build --win --publish never",
+    "build-mac": "electron-builder build --mac --publish never",
+    "build-all": "electron-builder build --win --mac --linux --publish never"
+  },
+  "keywords": ["clipboard", "snippet", "productivity"],
+  "author": "Your Team",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.0"
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0"
+  },
+  "build": {
+    "appId": "com.yourteam.collector",
+    "productName": "Collector",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": ["nsis"],
+      "icon": "icon.ico"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "icon": "icon.icns"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
