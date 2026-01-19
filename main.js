@@ -126,7 +126,7 @@ function createMainWindow() {
   }
 
   console.log('[Main] Creating new main window...');
-  mainWindow = new BrowserWindow({
+  const win = new BrowserWindow({
     width: 400,
     height: 600,
     webPreferences: {
@@ -137,21 +137,23 @@ function createMainWindow() {
     icon: path.join(__dirname, 'icon.png')
   });
 
-  mainWindow.loadFile('index.html');
+  mainWindow = win;
 
-  mainWindow.on('closed', () => {
-    mainWindow = null;
+  win.loadFile('index.html');
+
+  win.on('closed', () => {
+    if (mainWindow === win) {
+      mainWindow = null;
+    }
   });
 }
 
 function createQuickPasteWindow(tab = 'clipboard') {
-  console.log('[Main] createQuickPasteWindow called with tab:', tab);
-
   if (quickPasteWindow && !quickPasteWindow.isDestroyed()) {
     quickPasteWindow.close();
   }
 
-  quickPasteWindow = new BrowserWindow({
+  const win = new BrowserWindow({
     width: 450,
     height: 400,
     frame: false,
@@ -166,34 +168,33 @@ function createQuickPasteWindow(tab = 'clipboard') {
     }
   });
 
-  quickPasteWindow.loadFile('quickpaste.html');
+  quickPasteWindow = win;
+
+  win.loadFile('quickpaste.html');
 
   // 디버깅을 위해 DevTools 열기 (개발 모드에서만)
   if (!app.isPackaged) {
-    quickPasteWindow.webContents.openDevTools({ mode: 'detach' });
+    win.webContents.openDevTools({ mode: 'detach' });
   }
 
-  quickPasteWindow.once('ready-to-show', () => {
-    quickPasteWindow.show();
-    quickPasteWindow.center();
-    quickPasteWindow.focus();
+  win.once('ready-to-show', () => {
+    win.show();
+    win.center();
+    win.focus();
 
     // renderer 프로세스가 준비될 때까지 약간 대기
     setTimeout(() => {
-      console.log('[Main] Sending set-tab message with:', tab);
-      quickPasteWindow.webContents.send('set-tab', tab);
+      if (!win.isDestroyed()) {
+        console.log('[Main] Sending set-tab message with:', tab);
+        win.webContents.send('set-tab', tab);
+      }
     }, 100);
   });
 
-  // 포커스 잃으면 닫기 (일시적으로 비활성화)
-  // quickPasteWindow.on('blur', () => {
-  //   if (quickPasteWindow && !quickPasteWindow.isDestroyed()) {
-  //     quickPasteWindow.close();
-  //   }
-  // });
-
-  quickPasteWindow.on('closed', () => {
-    quickPasteWindow = null;
+  win.on('closed', () => {
+    if (quickPasteWindow === win) {
+      quickPasteWindow = null;
+    }
   });
 }
 
@@ -283,30 +284,49 @@ app.whenReady().then(() => {
     return true;
   });
 
-  ipcMain.handle('paste-and-close', async (event, text, type = 'text') => {
+  ipcMain.handle('paste-and-close', async (event, content, type = 'text') => {
     console.log('[IPC] paste-and-close called with type:', type);
 
     try {
       if (type === 'image') {
-        const nativeImg = nativeImage.createFromDataURL(text);
+        const nativeImg = nativeImage.createFromDataURL(content);
         clipboard.writeImage(nativeImg);
+      } else if (type === 'file') {
+        // macOS에서 파일 자체로 인식되게 Buffer로 쓰기
+        if (process.platform === 'darwin') {
+          // file:// 접두어 제거 및 인코딩 처리
+          let filePath = content;
+          if (filePath.startsWith('file://')) {
+            filePath = decodeURI(filePath.replace('file://', ''));
+          }
+          clipboard.writeBuffer('text/uri-list', Buffer.from(`file://${filePath}\r\n`));
+        } else {
+          clipboard.writeText(content);
+        }
       } else {
-        clipboard.writeText(text);
+        clipboard.writeText(content);
       }
 
-      lastClipboard = text;
+      lastClipboard = content;
 
-      // 윈도우 숨기기 및 포커스 반환
+      // 윈도우 숨기기
       if (quickPasteWindow && !quickPasteWindow.isDestroyed()) {
-        quickPasteWindow.hide(); // close 대신 hide로 부드럽게
+        quickPasteWindow.hide();
       }
 
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.hide();
       }
 
+      // macOS에서 이전 앱으로 포커스 반환 및 자동 붙여넣기
       if (process.platform === 'darwin') {
-        app.hide(); // macOS에서 이전 앱으로 포커스 반환
+        app.hide(); // 이전 앱으로 포커스 감
+
+        // 약간의 지연 후 붙여넣기 실행 (포커스 이동 대기)
+        const { exec } = require('child_process');
+        setTimeout(() => {
+          exec(`osascript -e 'tell application "System Events" to keystroke "v" using {command down}'`);
+        }, 300);
       }
 
       return { success: true };

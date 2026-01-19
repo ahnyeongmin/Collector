@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
   <title>빠른 붙여넣기</title>
   <style>
     * {
@@ -11,7 +13,8 @@
       box-sizing: border-box;
     }
 
-    html, body {
+    html,
+    body {
       width: 100%;
       height: 100%;
       margin: 0;
@@ -445,6 +448,7 @@
     }
   </style>
 </head>
+
 <body>
   <div id="app">
     <div class="header">
@@ -464,7 +468,8 @@
     </div>
 
     <div class="footer">
-      <span><span class="footer-key">↑↓</span> 이동 | <span class="footer-key">↵</span> 선택 | <span class="footer-key">⇥</span> 전환 | <span class="footer-key">1-9</span> 바로선택</span>
+      <span><span class="footer-key">↑↓</span> 이동 | <span class="footer-key">↵</span> 선택 | <span
+          class="footer-key">⇥</span> 전환 | <span class="footer-key">1-9</span> 바로선택</span>
       <span><span class="footer-key">esc</span> 닫기</span>
     </div>
   </div>
@@ -652,7 +657,7 @@
         if (currentTab === 'clipboard') {
           const isImage = item.type === 'image';
           const isFile = item.type === 'file';
-          
+
           let thumbnail = '📄';
           let preview = item.content.substring(0, 80);
 
@@ -703,6 +708,7 @@
       const items = currentTab === 'clipboard' ? clipboardHistory : snippets;
       if (index >= 0 && index < items.length) {
         const item = items[index];
+        // 스니펫은 기본적으로 text, 클립보드는 item.type 사용
         const type = item.type || (currentTab === 'snippets' ? 'text' : 'text');
         console.log('Pasting and closing:', item.content, 'Type:', type);
 
@@ -843,4 +849,5 @@
     init();
   </script>
 </body>
+
 </html>
