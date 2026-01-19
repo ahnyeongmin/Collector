@@ -115,8 +115,10 @@ function createQuickPasteWindow(tab = 'clipboard') {
 
   quickPasteWindow.loadFile('quickpaste.html');
 
-  // 디버깅을 위해 DevTools 열기
-  quickPasteWindow.webContents.openDevTools({ mode: 'detach' });
+  // 디버깅을 위해 DevTools 열기 (개발 모드에서만)
+  if (!app.isPackaged) {
+    quickPasteWindow.webContents.openDevTools({ mode: 'detach' });
+  }
 
   quickPasteWindow.once('ready-to-show', () => {
     quickPasteWindow.show();
