@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>UI 테스트</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+    }
+
+    .window {
+      width: 450px;
+      height: 400px;
+      background: rgba(245, 245, 247, 0.85);
+      backdrop-filter: blur(60px) saturate(180%);
+      -webkit-backdrop-filter: blur(60px) saturate(180%);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 20px 80px rgba(0, 0, 0, 0.35), 0 0 0 0.5px rgba(255, 255, 255, 0.5) inset;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      background: rgba(255, 255, 255, 0.6);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      padding: 16px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .header h2 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1d1d1f;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .header-shortcut {
+      font-size: 11px;
+      color: #86868b;
+      font-weight: 600;
+      padding: 4px 8px;
+      background: #f5f5f7;
+      border-radius: 6px;
+    }
+
+    .tabs {
+      display: flex;
+      background: rgba(255, 255, 255, 0.5);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      padding: 0 4px;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 10px 12px;
+      text-align: center;
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      color: #86868b;
+      font-size: 13px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      font-weight: 600;
+      position: relative;
+      border-radius: 6px;
+      margin: 4px 2px;
+    }
+
+    .tab:hover {
+      background: rgba(0, 122, 255, 0.08);
+      color: #007aff;
+    }
+
+    .tab.active {
+      color: #007aff;
+      background: rgba(0, 122, 255, 0.12);
+    }
+
+    .tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 24px;
+      height: 3px;
+      background: #007aff;
+      border-radius: 3px;
+      box-shadow: 0 1px 3px rgba(0, 122, 255, 0.4);
+    }
+
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      background: transparent;
+      padding: 6px;
+    }
+
+    .content::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .content::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .content::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 4px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+    }
+
+    .content::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 0, 0.25);
+      background-clip: padding-box;
+    }
+
+    .item {
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.4);
+      border-radius: 10px;
+      margin-bottom: 4px;
+      border: 1px solid rgba(0, 0, 0, 0.04);
+    }
+
+    .item:hover {
+      background: rgba(0, 122, 255, 0.1);
+      border-color: rgba(0, 122, 255, 0.2);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 122, 255, 0.15);
+    }
+
+    .item.selected {
+      background: rgba(0, 122, 255, 0.18);
+      border-color: rgba(0, 122, 255, 0.3);
+      box-shadow: 0 4px 16px rgba(0, 122, 255, 0.25);
+    }
+
+    .item-number {
+      width: 22px;
+      height: 22px;
+      min-width: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(134, 134, 139, 0.15);
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #86868b;
+      transition: all 0.2s;
+    }
+
+    .item.selected .item-number {
+      background: #007aff;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+    }
+
+    .item-icon {
+      font-size: 20px;
+      min-width: 24px;
+      text-align: center;
+    }
+
+    .item-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .item-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 3px;
+      color: #1d1d1f;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .item-text {
+      font-size: 12px;
+      color: #86868b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.3;
+    }
+
+    .footer {
+      background: rgba(255, 255, 255, 0.5);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      padding: 12px 18px;
+      font-size: 10px;
+      color: #86868b;
+      display: flex;
+      justify-content: space-between;
+      border-top: 1px solid rgba(0, 0, 0, 0.08);
+      font-weight: 500;
+    }
+
+    .footer-key {
+      font-weight: 700;
+      color: #1d1d1f;
+      padding: 3px 6px;
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 4px;
+      margin: 0 2px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+  </style>
+</head>
+<body>
+  <div class="window">
+    <div class="header">
+      <h2>📋 빠른 붙여넣기</h2>
+      <span class="header-shortcut">⌘⇧V</span>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active">클립보드</button>
+      <button class="tab">스니펫</button>
+    </div>
+
+    <div class="content">
+      <div class="item selected">
+        <div class="item-number">1</div>
+        <div class="item-icon">📄</div>
+        <div class="item-content">
+          <div class="item-text">그래도 구린 것 같은데? 뭐가 제대로 적용이 안되는 느낌이야</div>
+        </div>
+      </div>
+
+      <div class="item">
+        <div class="item-number">2</div>
+        <div class="item-icon">📄</div>
+        <div class="item-content">
+          <div class="item-text">응응 전체적으로 다 점검하고 수정해</div>
+        </div>
+      </div>
+
+      <div class="item">
+        <div class="item-number">3</div>
+        <div class="item-icon">📄</div>
+        <div class="item-content">
+          <div class="item-text">잠깐! 우선 지금까지 작성된 코드 기반으로 저런 UI가 나오느게 정상인지부터 체크해</div>
+        </div>
+      </div>
+
+      <div class="item">
+        <div class="item-number">4</div>
+        <div class="item-icon">📄</div>
+        <div class="item-content">
+          <div class="item-text">좋아 실행은 된다! 근데 UI가 예쁘지 않고 esc를 했을 때 닫히지 않아</div>
+        </div>
+      </div>
+
+      <div class="item">
+        <div class="item-number">5</div>
+        <div class="item-icon">📧</div>
+        <div class="item-content">
+          <div class="item-title">이메일</div>
+          <div class="item-text">확인 후 회신 드리겠습니다. 감사합니다.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span><span class="footer-key">↑↓</span> 이동 | <span class="footer-key">↵</span> 선택 | <span class="footer-key">⇥</span> 전환 | <span class="footer-key">1-9</span> 바로선택</span>
+      <span><span class="footer-key">esc</span> 닫기</span>
+    </div>
+  </div>
+
+  <script>
+    // 탭 전환
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+      });
+    });
+
+    // 아이템 선택
+    document.querySelectorAll('.item').forEach((item, index) => {
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.item').forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+      });
+    });
+  </script>
+</body>
+</html>
