@@ -63,12 +63,16 @@ function addToHistory(text) {
 }
 
 function createMainWindow() {
+  console.log('[Main] createMainWindow called');
+
   if (mainWindow && !mainWindow.isDestroyed()) {
+    console.log('[Main] Main window already exists, showing...');
     mainWindow.show();
     mainWindow.focus();
     return;
   }
 
+  console.log('[Main] Creating new main window...');
   mainWindow = new BrowserWindow({
     width: 400,
     height: 600,
@@ -88,6 +92,8 @@ function createMainWindow() {
 }
 
 function createQuickPasteWindow(tab = 'clipboard') {
+  console.log('[Main] createQuickPasteWindow called with tab:', tab);
+
   if (quickPasteWindow && !quickPasteWindow.isDestroyed()) {
     quickPasteWindow.close();
   }
@@ -99,6 +105,7 @@ function createQuickPasteWindow(tab = 'clipboard') {
     transparent: false,
     alwaysOnTop: true,
     skipTaskbar: true,
+    backgroundColor: '#667eea',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -108,19 +115,27 @@ function createQuickPasteWindow(tab = 'clipboard') {
 
   quickPasteWindow.loadFile('quickpaste.html');
 
+  // 디버깅을 위해 DevTools 열기
+  quickPasteWindow.webContents.openDevTools({ mode: 'detach' });
+
   quickPasteWindow.once('ready-to-show', () => {
-    quickPasteWindow.webContents.send('set-tab', tab);
     quickPasteWindow.show();
     quickPasteWindow.center();
     quickPasteWindow.focus();
+
+    // renderer 프로세스가 준비될 때까지 약간 대기
+    setTimeout(() => {
+      console.log('[Main] Sending set-tab message with:', tab);
+      quickPasteWindow.webContents.send('set-tab', tab);
+    }, 100);
   });
 
-  // 포커스 잃으면 닫기
-  quickPasteWindow.on('blur', () => {
-    if (quickPasteWindow && !quickPasteWindow.isDestroyed()) {
-      quickPasteWindow.close();
-    }
-  });
+  // 포커스 잃으면 닫기 (일시적으로 비활성화)
+  // quickPasteWindow.on('blur', () => {
+  //   if (quickPasteWindow && !quickPasteWindow.isDestroyed()) {
+  //     quickPasteWindow.close();
+  //   }
+  // });
 
   quickPasteWindow.on('closed', () => {
     quickPasteWindow = null;
@@ -146,7 +161,7 @@ function createTray() {
     },
     { type: 'separator' },
     { label: '빠른 붙여넣기 (Ctrl+Shift+V)', click: () => createQuickPasteWindow('clipboard') },
-    { label: '빠른 스니펫 (Ctrl+Shift+B)', click: () => createQuickPasteWindow('snippets') },
+    { label: '빠른 스니펫 (Ctrl+Shift+S)', click: () => createQuickPasteWindow('snippets') },
     { type: 'separator' },
     { label: '종료', click: () => app.quit() }
   ]);
@@ -171,61 +186,79 @@ function registerShortcuts() {
     createQuickPasteWindow('clipboard');
   });
 
-  // Ctrl+Shift+B - 빠른 스니펫
-  globalShortcut.register('CommandOrControl+Shift+B', () => {
+  // Ctrl+Shift+S - 빠른 스니펫
+  globalShortcut.register('CommandOrControl+Shift+S', () => {
     createQuickPasteWindow('snippets');
   });
 }
 
-// IPC 핸들러
-ipcMain.handle('get-clipboard-history', () => clipboardHistory);
-ipcMain.handle('get-snippets', () => snippets);
-
-ipcMain.handle('add-snippet', (event, snippet) => {
-  snippets.unshift({
-    id: Date.now().toString(),
-    ...snippet,
-    createdAt: Date.now()
-  });
-  saveData();
-  return snippets;
-});
-
-ipcMain.handle('delete-snippet', (event, id) => {
-  snippets = snippets.filter(s => s.id !== id);
-  saveData();
-  return snippets;
-});
-
-ipcMain.handle('clear-history', () => {
-  clipboardHistory = [];
-  saveData();
-  return true;
-});
-
-ipcMain.handle('copy-to-clipboard', (event, text) => {
-  clipboard.writeText(text);
-  lastClipboard = text;
-  return true;
-});
-
-ipcMain.handle('paste-and-close', (event, text) => {
-  clipboard.writeText(text);
-  lastClipboard = text;
-
-  if (quickPasteWindow && !quickPasteWindow.isDestroyed()) {
-    quickPasteWindow.close();
-  }
-
-  // 클립보드에 복사됨 - 이후 수동으로 Ctrl+V
-  // (자동 붙여넣기는 추가 네이티브 모듈 필요)
-
-  return true;
-});
-
 // 앱 시작
 app.whenReady().then(() => {
   loadData();
+
+  // IPC 핸들러 등록
+  ipcMain.handle('get-clipboard-history', () => clipboardHistory);
+  ipcMain.handle('get-snippets', () => snippets);
+
+  ipcMain.handle('add-snippet', (event, snippet) => {
+    snippets.unshift({
+      id: Date.now().toString(),
+      ...snippet,
+      createdAt: Date.now()
+    });
+    saveData();
+    return snippets;
+  });
+
+  ipcMain.handle('delete-snippet', (event, id) => {
+    snippets = snippets.filter(s => s.id !== id);
+    saveData();
+    return snippets;
+  });
+
+  ipcMain.handle('clear-history', () => {
+    clipboardHistory = [];
+    saveData();
+    return true;
+  });
+
+  ipcMain.handle('copy-to-clipboard', (event, text) => {
+    clipboard.writeText(text);
+    lastClipboard = text;
+    return true;
+  });
+
+  ipcMain.handle('paste-and-close', async (event, text) => {
+    console.log('[IPC] paste-and-close called with:', text);
+
+    try {
+      clipboard.writeText(text);
+      lastClipboard = text;
+      console.log('[IPC] Clipboard written successfully');
+
+      if (quickPasteWindow && !quickPasteWindow.isDestroyed()) {
+        console.log('[IPC] Closing quickPasteWindow');
+        quickPasteWindow.close();
+      } else {
+        console.error('[IPC] quickPasteWindow is null or destroyed');
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('[IPC] paste-and-close error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 창 닫기 핸들러
+  ipcMain.on('close-window', (event) => {
+    const webContents = event.sender;
+    const window = BrowserWindow.fromWebContents(webContents);
+    if (window) {
+      window.close();
+    }
+  });
+
   createTray();
   registerShortcuts();
   startClipboardMonitoring();
